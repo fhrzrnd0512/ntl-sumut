@@ -10,7 +10,7 @@ st.title("Pemantauan Night Time Light (NTL) Sumatera Utara")
 st.markdown("Dashboard ini menampilkan agregasi intensitas cahaya malam hari dari satelit VIIRS sebagai proksi aktivitas ekonomi spasial.")
 
 # ==========================================
-# MATERI EDUKASI NTL (Bisa dilipat/expander)
+# MATERI EDUKASI NTL
 # ==========================================
 with st.expander("📖 Panduan Membaca Data Night Time Light (NTL)"):
     st.markdown("""
@@ -18,12 +18,12 @@ with st.expander("📖 Panduan Membaca Data Night Time Light (NTL)"):
     NTL adalah data citra satelit yang menangkap emisi cahaya buatan manusia di malam hari (seperti lampu jalan, penerangan pabrik, perumahan, dan kendaraan). Data ini diperoleh dari sensor VIIRS (Visible Infrared Imaging Radiometer Suite) milik NASA/NOAA.
 
     **Mengapa NTL digunakan oleh BPS?**
-    Pendaran cahaya malam hari memiliki korelasi positif yang kuat dengan aktivitas ekonomi, tingkat urbanisasi, dan kepadatan penduduk. NTL sering digunakan sebagai proksi independen untuk memantau pergerakan PDRB dan fenomena ekonomi spasial yang sulit direkam oleh survei konvensional.
+    Pendaran cahaya malam hari memiliki korelasi positif yang kuat dengan aktivitas ekonomi, tingkat urbanisasi, dan kepadatan penduduk. NTL sering digunakan sebagai proksi independen untuk memantau pergerakan PDRB dan fenomena ekonomi spasial.
 
     **Cara Membaca Indikator NTL:**
-    * **Nilai Absolut (Rata-rata NTL):** Semakin tinggi nilainya, semakin terang wilayah tersebut, yang mengindikasikan konsentrasi infrastruktur dan aktivitas ekonomi yang padat (biasanya kota besar akan memiliki NTL jauh lebih tinggi dari kabupaten).
-    * **Laju Pertumbuhan (QtQ / YoY):** 
-        * **Positif (Naik):** Menunjukkan adanya ekspansi aktivitas, pembangunan infrastruktur baru, atau pemulihan ekonomi di wilayah tersebut dibandingkan periode sebelumnya.
+    * **Nilai Absolut (Rata-rata NTL):** Semakin tinggi nilainya, semakin terang wilayah tersebut, mengindikasikan konsentrasi infrastruktur dan aktivitas ekonomi yang padat.
+    * **Laju Pertumbuhan (QtQ / MtM / YoY):** 
+        * **Positif (Naik):** Menunjukkan adanya ekspansi aktivitas, pembangunan infrastruktur baru, atau pemulihan ekonomi di wilayah tersebut.
         * **Negatif (Turun):** Bisa mengindikasikan perlambatan aktivitas ekonomi, penurunan konsumsi listrik, atau dampak dari bencana/pembatasan sosial.
     """)
 
@@ -32,32 +32,54 @@ with st.expander("📖 Panduan Membaca Data Night Time Light (NTL)"):
 # ==========================================
 @st.cache_data
 def load_data():
-    # Pastikan file excel berada di dalam folder 'data'
-    df = pd.read_excel('data_ntl_sumut_triwulanan.xlsx')
-    return df
+    df_triwulan = pd.read_excel('data_ntl_sumut_triwulanan.xlsx')
+    df_bulanan = pd.read_excel('data_ntl_sumut_bulanan.xlsx')
+    return df_triwulan, df_bulanan
 
-df_ntl = load_data()
+df_triwulan, df_bulanan = load_data()
 
 # ==========================================
 # 2. SIDEBAR & FILTER DINAMIS
 # ==========================================
-st.sidebar.header("Filter Waktu")
+st.sidebar.header("Filter Analisis")
 
-list_tahun = sorted(df_ntl['Tahun'].unique(), reverse=True)
-selected_tahun = st.sidebar.selectbox("Pilih Tahun", list_tahun)
-selected_triwulan = st.sidebar.selectbox("Pilih Triwulan", [1, 2, 3, 4], format_func=lambda x: f"Triwulan {x} (Q{x})")
+# Toggle Pemilihan Dataset
+jenis_analisis = st.sidebar.radio("Tingkat Analisis:", ["Triwulanan", "Bulanan"])
+st.sidebar.markdown("---")
 
-df_filtered = df_ntl[(df_ntl['Tahun'] == selected_tahun) & (df_ntl['Triwulan'] == selected_triwulan)]
+if jenis_analisis == "Triwulanan":
+    list_tahun = sorted(df_triwulan['Tahun'].unique(), reverse=True)
+    selected_tahun = st.sidebar.selectbox("Pilih Tahun", list_tahun)
+    selected_triwulan = st.sidebar.selectbox("Pilih Triwulan", [1, 2, 3, 4], format_func=lambda x: f"Triwulan {x} (Q{x})")
+    
+    df_filtered = df_triwulan[(df_triwulan['Tahun'] == selected_tahun) & (df_triwulan['Triwulan'] == selected_triwulan)]
+    judul_stat = f"Q{selected_triwulan} {selected_tahun}"
+    laju_pendek_label = "QtQ NTL"
+    laju_pendek_title = "Laju Pertumbuhan QtQ (Quarter-to-Quarter)"
+    
+else:
+    list_tahun = sorted(df_bulanan['Tahun'].unique(), reverse=True)
+    selected_tahun = st.sidebar.selectbox("Pilih Tahun", list_tahun)
+    
+    # Filter bulan berdasarkan tahun yang dipilih agar dinamis
+    bulan_tersedia = df_bulanan[df_bulanan['Tahun'] == selected_tahun]['Bulan_Angka'].unique()
+    bulan_indo = {1:'Januari', 2:'Februari', 3:'Maret', 4:'April', 5:'Mei', 6:'Juni', 7:'Juli', 8:'Agustus', 9:'September', 10:'Oktober', 11:'November', 12:'Desember'}
+    
+    selected_bulan_angka = st.sidebar.selectbox("Pilih Bulan", sorted(bulan_tersedia), format_func=lambda x: bulan_indo[x])
+    
+    df_filtered = df_bulanan[(df_bulanan['Tahun'] == selected_tahun) & (df_bulanan['Bulan_Angka'] == selected_bulan_angka)]
+    judul_stat = f"{bulan_indo[selected_bulan_angka]} {selected_tahun}"
+    laju_pendek_label = "MtM NTL"
+    laju_pendek_title = "Laju Pertumbuhan MtM (Month-to-Month)"
 
 # ==========================================
 # 3. STATISTIK UTAMA SUMATERA UTARA
 # ==========================================
-st.subheader(f"Statistik NTL - Q{selected_triwulan} {selected_tahun}")
+st.subheader(f"Statistik NTL - {judul_stat}")
 
 if df_filtered.empty:
     st.warning("Data untuk periode ini belum tersedia di dalam file Excel.")
 else:
-    # Nilai Rata-rata Sumatera Utara dihitung di sini
     rata_sumut = df_filtered['NTL'].mean()
     
     col1, col2 = st.columns(2)
@@ -69,38 +91,38 @@ else:
     # ==========================================
     st.subheader("Visualisasi Pertumbuhan NTL")
     
-    tab1, tab2 = st.tabs(["Laju YoY", "Laju QtQ"])
+    tab1, tab2 = st.tabs(["Laju YoY", f"Laju {laju_pendek_label.split()[0]}"])
     
     with tab1:
         df_yoy = df_filtered.sort_values(by='YoY NTL', ascending=False)
         fig_yoy = px.bar(
             df_yoy, x='nmkab', y='YoY NTL', 
-            title="Laju Pertumbuhan YoY (Year-on-Year)",
+            title=f"Laju Pertumbuhan YoY (Year-on-Year) - {judul_stat}",
             labels={'nmkab': 'Kabupaten/Kota', 'YoY NTL': 'YoY (%)'},
             color='YoY NTL', color_continuous_scale='Viridis'
         )
         st.plotly_chart(fig_yoy, use_container_width=True)
 
     with tab2:
-        df_qtq = df_filtered.sort_values(by='QtQ NTL', ascending=False)
-        fig_qtq = px.bar(
-            df_qtq, x='nmkab', y='QtQ NTL', 
-            title="Laju Pertumbuhan QtQ (Quarter-to-Quarter)",
-            labels={'nmkab': 'Kabupaten/Kota', 'QtQ NTL': 'QtQ (%)'},
-            color='QtQ NTL', color_continuous_scale='Magma'
+        df_pendek = df_filtered.sort_values(by=laju_pendek_label, ascending=False)
+        fig_pendek = px.bar(
+            df_pendek, x='nmkab', y=laju_pendek_label, 
+            title=f"{laju_pendek_title} - {judul_stat}",
+            labels={'nmkab': 'Kabupaten/Kota', laju_pendek_label: f"{laju_pendek_label.split()[0]} (%)"},
+            color=laju_pendek_label, color_continuous_scale='Magma'
         )
-        st.plotly_chart(fig_qtq, use_container_width=True)
+        st.plotly_chart(fig_pendek, use_container_width=True)
 
     # ==========================================
     # 5. TABEL RINCIAN
     # ==========================================
     st.subheader("Tabel Rincian per Kabupaten/Kota")
-    df_tabel = df_filtered[['nmkab', 'NTL', 'QtQ NTL', 'YoY NTL']].sort_values(by='NTL', ascending=False).reset_index(drop=True)
+    df_tabel = df_filtered[['nmkab', 'NTL', laju_pendek_label, 'YoY NTL']].sort_values(by='NTL', ascending=False).reset_index(drop=True)
     
     st.dataframe(
         df_tabel.style.format({
             'NTL': '{:.4f}',
-            'QtQ NTL': '{:.2f}%',
+            laju_pendek_label: '{:.2f}%',
             'YoY NTL': '{:.2f}%'
         }), 
         use_container_width=True
@@ -109,8 +131,7 @@ else:
 # ==========================================
 # FOOTER
 # ==========================================
-st.markdown("---") # Garis pembatas horizontal
-# Footer teks berada di tengah dengan HTML/CSS sederhana
+st.markdown("---")
 st.markdown(
     "<p style='text-align: center; color: gray; font-size: 14px;'>"
     "Tim Neraca Produksi Sumatera Utara dibuat dengan ❤️ dan ☕</p>", 

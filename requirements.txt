@@ -1,8 +1,4 @@
 streamlit
 pandas
-geopandas
 openpyxl
-earthengine-api
-geemap
-streamlit-folium
-folium
+plotly

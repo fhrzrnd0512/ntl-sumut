@@ -33,7 +33,7 @@ with st.expander("📖 Panduan Membaca Data Night Time Light (NTL)"):
 @st.cache_data
 def load_data():
     # Pastikan file excel berada di dalam folder 'data'
-    df = pd.read_excel('data/data_ntl_sumut_triwulanan.xlsx')
+    df = pd.read_excel('data_ntl_sumut_triwulanan.xlsx')
     return df
 
 df_ntl = load_data()
